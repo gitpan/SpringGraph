@@ -62,7 +62,7 @@ use GD;
 
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(&calculate_graph &draw_graph);
-our $VERSION = 0.03;
+our $VERSION = 0.04;
 
 use constant PI => 3.141592653589793238462643383279502884197169399375105;
 
@@ -94,9 +94,9 @@ sub calculate_graph {
     my ($nodes,$links) = @_;
 #    warn "calculate_graph called with : ", @_, "\n";
     my $scale = 1;
-    my $push = 300;
+    my $push = 450;
     my $pull = .080;
-    my $maxiter = 35;
+    my $maxiter = 100;
     my $rate = 0.8;
     my $done = 0.3;
     my $continue = 5;
@@ -889,9 +889,9 @@ sub plot_branch {
     my $offset = rand(40);
     my $h = 0;
     while ( $h < $depth ) {
-#	warn "row $h height : $self->{_dia_row_heights}[$h]\n";
-	$offset += $self->{_dia_row_heights}[$h++] + 0.1;
-#	warn "offset now $offset\n";
+	warn "row $h height : $self->{_dia_row_heights}[$h]\n";
+	$offset += ($self->{_dia_row_heights}[$h++] || 40 ) + 10;
+	warn "offset now $offset\n";
     }
 
     #  warn Dumper(node=>$node);
@@ -901,9 +901,9 @@ sub plot_branch {
 	    $self->{_dia_done}{$node}++;
 	    my $sum = 0;
 	    foreach my $parent (@$parents) {
-		warn "parent : $parent\n";
-		return 0 unless (exists $self->{_dia_nodes}{$parent->{name}}{pos});
-		$sum += $self->{_dia_nodes}{$parent->{name}}{pos};
+		warn "[ plot branch ] parent : $parent \n";
+		return 0 unless (exists $self->{_dia_nodes}{$parent}{pos});
+		$sum += $self->{_dia_nodes}{$parent}{pos};
 	    }
 	    $self->{_dia_positions}[$depth]{int($pos)} = 1;
 	    my $newpos = ( $sum / scalar @$parents );
