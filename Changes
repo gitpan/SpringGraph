@@ -7,3 +7,8 @@ Revision history for Perl extension SpringGraph.
         - added support for record shapes
         - fixed add_edge bug
         - major refactorting
+
+0.03  Thu Jul 08 19:20:21 2004
+       - added naive tree starting positions for nodes
+       - added dotted and dashed lines
+       - reduced node colisions in sparse graphs

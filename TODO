@@ -1,12 +1,13 @@
 TODO
 ----
 
-Write tests
+1) Write tests
 
-Handle out-of-bounds errors when laying out graph
+2) Handle out-of-bounds errors when laying out graph
 
-More and better error reporting
+3) More and better error reporting
 
-Add more options
+4) Add more options
 
-Replace naive random start placements with weighted starting places
+5) make edges leave and arrive at nodes in better positions/angles
+

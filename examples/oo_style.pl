@@ -15,7 +15,7 @@ $graph->add_node('paris', label =>'Paris (Garde du Norde)');
 $graph->add_node('brussels',label => "Brussels");
 
 $graph->add_edge(london=>'paris');
-# $graph->add_edge(paris=>'brussels');
+#$graph->add_edge(paris=>'brussels');
 
 warn "..getting as png\n";
 
