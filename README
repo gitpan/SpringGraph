@@ -1,16 +1,12 @@
-SpringGraph version 0.01
+SpringGraph version 0.02
 ========================
 
-The README is used to introduce the module and provide instructions on
-how to install the module, any machine dependencies it may have (for
-example C compilers and installed libraries) and any other information
-that should be provided before the module is installed.
-
-A README file is required for CPAN modules since CPAN extracts the
-README file from a module distribution so that people browsing the
-archive can use it get an idea of the modules uses. It is usually a
-good idea to provide version information here so that people can
-decide whether fixes for the module are worth downloading.
+SpringGraph.pm is a rewrite of the springgraph.pl script, which provides 
+similar functionality to Neato and can read some/most dot files.
+ 
+The goal of this module is to provide a compatible interface to VCG
+and/or GraphViz perl modules on CPAN. This module will also provide
+some extra features to provide more flexibility and power.
 
 INSTALLATION
 
@@ -25,16 +21,12 @@ DEPENDENCIES
 
 This module requires these other modules and libraries:
 
-  blah blah blah
+  GD
 
 COPYRIGHT AND LICENCE
 
-Put the correct copyright and licence information here.
-
-Copyright (C) 2004 by aaron trevena
+Copyright (C) 2004 by Aaron Trevena
+Based on springgraph.pl by Darxus, original parts copyright 2003 Darxus
 
 This library is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself, either Perl version 5.8.1 or,
-at your option, any later version of Perl 5 you may have available.
-
-
+it under the same terms of the GNU GPL.

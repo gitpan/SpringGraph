@@ -1,0 +1,12 @@
+TODO
+----
+
+Write tests
+
+Handle out-of-bounds errors when laying out graph
+
+More and better error reporting
+
+Add more options
+
+Replace naive random start placements with weighted starting places

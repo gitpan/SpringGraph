@@ -7,12 +7,12 @@ use strict;
 
 use SpringGraph;
 
-$graph = new SpringGraph;
-$filename = 'testgraph_oo.png';
+my $graph = new SpringGraph;
+my $filename = 'testgraph_oo.png';
 
 $graph->add_node('london', label=>'London (Waterloo)');
 $graph->add_node('paris', label =>'Paris (Garde du Norde)');
-$graph->add_node('brussels',label => 'Brussels');
+$graph->add_node('brussels',label => "Brussels");
 
 $graph->add_edge(london=>'paris');
 # $graph->add_edge(paris=>'brussels');

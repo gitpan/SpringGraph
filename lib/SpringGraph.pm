@@ -62,7 +62,7 @@ use GD;
 
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(&calculate_graph &draw_graph);
-our $VERSION = 0.01;
+our $VERSION = 0.02;
 
 use constant PI => 3.141592653589793238462643383279502884197169399375105;
 
@@ -92,14 +92,14 @@ my $graph = calculate_graph(\%node,\%link);
 
 sub calculate_graph {
     my ($nodes,$links) = @_;
-    warn "calculate_graph called with : ", @_, "\n";
+#    warn "calculate_graph called with : ", @_, "\n";
     my %node = %$nodes;
     my %link = %$links;
     my $scale = 1;
 
-    my $push = 600;
+    my $push = 675;
     my $pull = .1;
-    my $maxiter = 175;
+    my $maxiter = 95;
     my $rate = 2;
     my $done = 0.3;
     my $continue = 1;
@@ -133,6 +133,7 @@ sub calculate_graph {
 		my $dist = sqrt(abs($xdist)**2 + abs($ydist)**2);
 		my $wantdist = $dist;
 		if ($link{$source}{$dest} || $link{$dest}{$source}) {
+		    next if ($dist <= 50 or $dist > 200);
 		    $wantdist = $wantdist + ($push / $dist);
 		    if ($link{$source}{$dest}) {
 			$wantdist = $wantdist - ($pull * $dist);
@@ -145,7 +146,7 @@ sub calculate_graph {
 		}
 		my $percent = ($wantdist/$dist);
 		my $wantxdist = ($xdist * $percent);
-		my $wantydist = ($ydist * $percent);
+		my $wantydist = ($ydist * $percent ) + 45;
 		$xmove += ($xdist - $wantxdist)*$rate;
 		$ymove += ($ydist - $wantydist)*$rate;
 		$movecount++;
@@ -153,10 +154,6 @@ sub calculate_graph {
 		    $pushmove = $push / $dist ;
 		    $pullmove = $pull * $dist;
 		}
-#		print STDERR "dist: $dist, pull: $pullmove, push: $pushmove\n";
-#		print STDERR "$source to ${dest}, Dist: $dist Want: $wantdist (${percent}x)\n";
-#		print STDERR "is: $node{$source}{oldx} $node{$source}{oldy} $xdist $ydist, want: $wantxdist $wantydist\n";
-
 	    }
 	    $xmove = $xmove / $movecount;
 	    $ymove = $ymove / $movecount;
@@ -171,12 +168,7 @@ sub calculate_graph {
 		}
 	    }
 	}
-	print STDERR "$iter\n";
-	if ($iter % 10 == 0) {
-	    print STDERR "$continue\n";
-	}
     }
-    print STDERR "Iterations: $iter\n";
     foreach my $source (keys %$nodes) {
 	foreach my $color ('r', 'g', 'b') {
 	    $node{$source}{$color} = 255 unless (defined $node{$source}{$color});
@@ -235,7 +227,7 @@ $graph->add_edge('London' => 'New York', label => 'Far');
 
 sub add_edge {
     my ($self,$source,$dest,%attributes) = @_;
-    $self->{links}{$source} = { $dest => 2 };
+    $self->{links}{$source}{$dest} = 2;
     $self->{nodes}{$source} ||= {};
     $self->{nodes}{$dest} ||= {};
     return;
@@ -303,13 +295,11 @@ sub draw {
     my ($maxylength,$minylength);
     my $margin = 20;
     my $nodesize = 40;
-    my $arrowlength = 10; # pixels
-    my $arrowwidth = 10;
     my @point = ();
 
     foreach my $nodename (keys %node) {
-	warn "getting maxx/minx for $nodename\n";
-	warn Dumper($nodename=>$node{$nodename});
+#	warn "getting maxx/minx for $nodename\n";
+#	warn Dumper($nodename=>$node{$nodename});
 	if (!(defined $maxx) or (($node{$nodename}{x} + (length($node{$nodename}{'label'}) * 8 + 16)/2) > $maxx + (length($node{$nodename}{'label'}) * 8 + 16)/2)) {
 	    $maxx = $node{$nodename}{x};
 	    $maxxlength = (length($node{$nodename}{'label'}) * 8 + 16)/2;
@@ -322,14 +312,14 @@ sub draw {
 	$maxy = $node{$nodename}{'y'} if (!(defined $maxy) or $node{$nodename}{'y'} > $maxy);
 	$miny = $node{$nodename}{'y'} if (!(defined $miny) or $node{$nodename}{'y'} < $miny);
     }
-    
+
     foreach my $nodename (keys %node) {
 	$node{$nodename}{x} = ($node{$nodename}{x} - $minx) * $scale + $minxlength -1 ;
 	$node{$nodename}{'y'} = ($node{$nodename}{'y'} - $miny) * $scale + $nodesize/2 - 1;
     }
 
-    $maxx = ($maxx - $minx) * $scale + $minxlength + $maxxlength;
-    $maxy = ($maxy - $miny) * $scale + $nodesize/2*2;
+    $maxx = (($maxx - $minx) * $scale + $minxlength + $maxxlength) * 1.25;
+    $maxy = (($maxy - $miny) * $scale + $nodesize/2*2 + 40) * 1.2;
     my $im = new GD::Image($maxx,$maxy);
     my $white = $im->colorAllocate(255,255,255);
     my $blue = $im->colorAllocate(0,0,255);
@@ -338,79 +328,40 @@ sub draw {
     my $darkgrey = $im->colorAllocate(169,169,169);
     $im->transparent($white);	# make white transparent
 
-    foreach my $source (keys %node) {
-	print STDERR "node: $source $node{$source}{x},$node{$source}{'y'}\n";
-	foreach my $dest (keys %node) {
-	    if (defined $link{$source}{$dest} and $link{$source}{$dest} == 2 and $source ne $dest) {
-		my $dist = sqrt( abs($node{$source}{x}-$node{$dest}{x})**2 +  abs($node{$source}{'y'}-$node{$dest}{'y'})**2 );
-		my $xdist = $node{$source}{x} - $node{$dest}{x};
-		my $ydist = $node{$source}{'y'} - $node{$dest}{'y'};
-		my $angle = &acos($xdist/$dist);
-		my $width = (length($node{$dest}{'label'}) * 8 + 16)/2;
-		my $height = $nodesize/2;
-		$dist = sqrt( ($height**2 * $width**2) / ( ($height**2 * (cos($angle)**2) ) + ($width**2 * (sin($angle)**2) ) ));
-
-		my $xmove = cos($angle)*$dist;
-		my $ymove = sin($angle)*$dist;
-		$point[0]{x} = $xmove;
-		$point[0]{'y'} = $ymove;
-
-		$xmove = cos($angle)*($dist+$arrowlength-3);
-		$ymove = sin($angle)*($dist+$arrowlength-3);
-		$point[3]{x} = $xmove;
-		$point[3]{'y'} = $ymove;
-
-
-		$dist = 4;
-		$xmove = $xmove + cos($angle)*$dist;
-		$ymove = $ymove + sin($angle)*$dist;
-
-		$angle = $angle + PI/2;
-		$dist = $arrowwidth/2;
-		$xmove = $xmove + cos($angle)*$dist;
-		$ymove = $ymove + sin($angle)*$dist;
-
-		$point[1]{x} = $xmove;
-		$point[1]{'y'} = $ymove;
-
-		$angle = $angle + PI;
-		$dist = $arrowwidth;
-		$xmove = $xmove + cos($angle)*$dist;
-		$ymove = $ymove + sin($angle)*$dist;
-		$point[2]{x} = $xmove;
-		$point[2]{'y'} = $ymove;
-
-		foreach my $num (0 .. 3) {
-		    $point[$num]{'y'} = - $point[$num]{'y'} if $ydist < 0;
-		}
-		$im->line( $node{$dest}{x}+$point[0]{x}, $node{$dest}{'y'}+$point[0]{'y'},
-			   $node{$dest}{x}+$point[1]{x}, $node{$dest}{'y'}+$point[1]{'y'}, $darkgrey );
-		$im->line( $node{$dest}{x}+$point[1]{x}, $node{$dest}{'y'}+$point[1]{'y'},
-			   $node{$dest}{x}+$point[2]{x}, $node{$dest}{'y'}+$point[2]{'y'}, $darkgrey );
-		$im->line( $node{$dest}{x}+$point[2]{x}, $node{$dest}{'y'}+$point[2]{'y'},
-			   $node{$dest}{x}+$point[0]{x}, $node{$dest}{'y'}+$point[0]{'y'}, $darkgrey);
-	    }
-	}
-    }
-    foreach my $source (keys %node) {
-	foreach my $dest (keys %node) {
-	    if ($link{$source}{$dest}) {
-		$im->line($node{$source}{x},$node{$source}{'y'},$node{$dest}{x},$node{$dest}{'y'},$darkgrey);
-	    }
-	}
-    }
-
     foreach my $node (keys %node) {
 	my $color = $white;
-	$im->arc($node{$node}{x},$node{$node}{'y'},(length($node{$node}{'label'}) * 8 + 16),$nodesize,0,360,$black);
 	if (defined $node{$node}{r} and defined $node{$node}{g} and defined $node{$node}{b}) {
 	    $color = $im->colorResolve($node{$node}{r}, $node{$node}{g}, $node{$node}{b});
 	}
-	$im->fillToBorder($node{$node}{x}, $node{$node}{'y'}, $black, $color);
-	$im->string( gdLargeFont, $node{$node}{x} - (length($node{$node}{'label'}) * 8 / 2),
-		     $node{$node}{'y'}-8, $node{$node}{'label'}, $black);
+	if (defined $node{$node}{shape} and $node{$node}{shape} eq 'record') {
+	    $node{$node}{boundary} = addRecordNode ($im,$node{$node}{x},$node{$node}{'y'},$node{$node}{'label'},$maxx,$maxy);
+	} else {
+	    addPlainNode($im,$node{$node}{x},$node{$node}{'y'},$node{$node}{'label'});
+	}
     }
 
+    # draw lines
+    foreach my $source (keys %node) {
+	my ($topy,$boty) = ($node{$source}{'y'} -20,$node{$source}{'y'} + 20);
+	foreach my $dest (keys %{$link{$source}}) {
+	    my ($destx,$desty) = ($node{$dest}{x},$node{$dest}{'y'}) ;
+	    my ($sourcex,$sourcey) = ($node{$source}{x}, ( $node{$source}{'y'} < $node{$dest}{'y'} ) ? $boty : $topy );
+	    if (defined $node{$dest}{boundary}) {
+		$destx = ( $node{$source}{x} < $node{$dest}{x} )
+		    ? $node{$dest}{boundary}[0] : $node{$dest}{boundary}[2] ;
+		$desty = ( $node{$source}{'y'} < $node{$dest}{'y'} )
+		    ? $node{$dest}{boundary}[1] : $node{$dest}{boundary}[3] ;
+		$im->line($sourcex, $sourcey, $destx, $desty, $darkgrey);
+	    } else {
+		$desty = $node{$dest}{'y'};
+		$im->line($sourcex,$sourcey, $destx, $desty, $darkgrey);
+		addPlainNode($im,$node{$dest}{x},$node{$dest}{'y'},$node{$dest}{'label'});
+	    }
+	    if ($link{$source}{$dest} == 2) {
+		addArrowHead ($im,$sourcex,$destx,$sourcey,$desty,$node{$dest}{shape},$node{$dest}{'label'});
+	    }
+	}
+    }
 
     # output the image
     if ($options{gd}) {
@@ -434,6 +385,213 @@ sub draw {
 	print $im->png;
     }
     return; # maybe we should return something.. nah
+}
+
+
+sub addRecordNode {
+    my ($im,$x,$y,$string,$maxx,$maxy) = @_;
+    my $white = $im->colorAllocate(255,255,255);
+    my $blue = $im->colorAllocate(0,0,255);
+    my $powderblue = $im->colorAllocate(176,224,230);
+    my $black = $im->colorAllocate(0,0,0);
+    my $darkgrey = $im->colorAllocate(169,169,169);
+    my $red = $im->colorAllocate(255,0,0);
+
+    # split text on newline, or |
+    my @record_lines = split(/\s*([\n\|])\s*/,$string);
+
+    my $margin = 3;
+    my ($height,$width) = (0,0);
+    foreach my $line (@record_lines) {
+    LINE: {
+	    if ($line eq '|') {
+		$height += 4;
+		last LINE;
+	    }
+	    if ($line eq "\n") {
+		last LINE;
+	    }
+	    $height += 18;
+	    my $this_width = get_width($line);
+	    $width = $this_width if ($width < $this_width );
+	} # end of LINE
+    }
+
+    $height += $margin * 2;
+    $width += $margin * 2;
+
+    my $topx = $x - ($width / 2);
+    my $topy = $y - ($height / 3);
+    $topy = 5 if ($topy <= 0);
+    $topx = 5 if ($topx <= 0);
+
+    if (($topy + $height ) > $maxy) {
+	$topy = $maxy - $height;
+    }
+
+#    warn "height : $height, width : $width, start x : $topx, start y : $topy\n";
+
+    # notes (gdSmallFont):
+    # - 5px wide, 1px gap between words
+    # - 2px up, 2px down, 6px middle
+
+    $im->rectangle($topx,$topy,$topx+$width,$topy+$height,$black);
+    $im->fillToBorder($x, $y, $black, $white);
+
+    my ($curx,$cury) = ($topx + $margin, $topy + $margin);
+    foreach my $line (@record_lines) {
+	next if ($line =~ /\n/);
+#	warn "line : $line \n";
+	if ($line eq '|') {
+	    $im->line($topx,$cury,$topx+$width,$cury,$black);
+	    $cury += 4;
+	} else {
+	    $im->string(gdLargeFont,$curx,$cury,$line,$black);
+	    $cury += 18;
+	}
+#	warn "current x : $curx, current y : $cury\n";
+    }
+
+    # Put a black frame around the picture
+    my $boundary = [$topx,$topy,$topx+$width,$topy+$height];
+    return $boundary;
+}
+
+sub get_width {
+#    warn "get_width called with ", @_, "\n";
+    my $string = shift;
+    my $width = ( length ($string) * 9) - 2;
+#    warn "width : $width\n";
+    return $width;
+}
+
+sub addPlainNode {
+    my ($im,$x,$y,$string,$color) = @_;
+    my $white = $im->colorAllocate(255,255,255);
+    my $blue = $im->colorAllocate(0,0,255);
+    my $powderblue = $im->colorAllocate(176,224,230);
+    my $black = $im->colorAllocate(0,0,0);
+    my $darkgrey = $im->colorAllocate(169,169,169);
+
+    $color ||= $white;
+    $im->arc($x,$y,(length($string) * 8 + 16),40,0,360,$black);
+    $im->fillToBorder($x, $y, $black, $color);
+    $im->string( gdLargeFont, ($x - (length($string)) * 8 / 2), $y-8, $string, $black);
+    return;
+}
+
+
+sub addArrowHead {
+    my ($im,$sourcex,$destx,$sourcey,$desty,$nodetype,$nodetext) = @_;
+    my @point = ();
+    my $darkgrey = $im->colorAllocate(169,169,169);
+    my $white = $im->colorAllocate(255,255,255);
+    my $blue = $im->colorAllocate(0,0,255);
+    my $powderblue = $im->colorAllocate(176,224,230);
+    my $black = $im->colorAllocate(0,0,0);
+    my $red = $im->colorAllocate(255,0,0);
+
+    my $arrowlength = 10; # pixels
+    my $arrowwidth = 10;
+    my $height = (defined $nodetype and $nodetype eq 'record') ? 5 : 20 ;
+    my $width = (defined $nodetype and $nodetype eq 'record') ? 5 : (length($nodetext) * 8 + 16)/2;;
+
+    # I'm pythagorus^Wspartacus!
+    my $xdist = $sourcex - $destx;
+    my $ydist = $sourcey - $desty;
+    my $dist = sqrt( abs($xdist)**2 + abs($ydist)**2 );
+    my $angle = &acos($xdist/$dist);
+
+    $dist = sqrt( ($height**2 * $width**2) / ( ($height**2 * (cos($angle)**2) ) + ($width**2 * (sin($angle)**2) ) ));
+
+    my ($x,$y);
+    my $xmove = cos($angle)*($dist+$arrowlength-3);
+    my $ymove = sin($angle)*($dist+$arrowlength-3);
+
+    if (defined $nodetype and $nodetype eq 'record') {
+	$point[2]{x} = $xmove;
+	$point[2]{'y'} = $ymove;
+
+	$dist = 4;
+	$xmove = $xmove + cos($angle)*$dist;
+	$ymove = $ymove + sin($angle)*$dist;
+
+	$angle = $angle + PI/2;
+	$dist = $arrowwidth/2;
+	$xmove = $xmove + cos($angle)*$dist;
+	$ymove = $ymove + sin($angle)*$dist;
+
+	$point[0]{x} = $xmove;
+	$point[0]{'y'} = $ymove;
+
+	$angle = $angle + PI;
+	$dist = $arrowwidth;
+	$xmove = $xmove + cos($angle)*$dist;
+	$ymove = $ymove + sin($angle)*$dist;
+	$point[1]{x} = $xmove;
+	$point[1]{'y'} = $ymove;
+
+	foreach my $num (0 .. 2) {
+	    $point[$num]{'y'} = - $point[$num]{'y'} if $ydist < 0;
+	}
+
+	$im->line( $destx, $desty, $destx+$point[0]{x}, $desty+$point[0]{'y'}, $darkgrey );
+	$im->line( $destx+$point[0]{x}, $desty+$point[0]{'y'}, $destx+$point[1]{x}, $desty+$point[1]{'y'}, $darkgrey );
+	$im->line( $destx+$point[1]{x}, $desty+$point[1]{'y'},$destx, $desty, $darkgrey);
+
+	$x = int(($point[1]{x} + $point[0]{x}) / 2.5);
+	$y = int(($point[1]{'y'} + $point[0]{'y'}) / 2.5);
+	#    $im->setPixel($destx + $x, $desty + $y, $red);
+
+    } else {
+        $dist = sqrt( abs($sourcex - $destx)**2 +  abs($sourcey-$desty)**2 );
+	$xdist = $sourcex - $destx;
+	$ydist = $sourcey - $desty;
+	$angle = &acos($xdist/$dist);
+        $dist = sqrt( ($height**2 * $width**2) / ( ($height**2 * (cos($angle)**2) ) + ($width**2 * (sin($angle)**2) ) ));
+        $xmove = cos($angle)*$dist;
+        $ymove = sin($angle)*$dist;
+
+        $point[0]{x} = $xmove;
+        $point[0]{'y'} = $ymove;
+
+        $xmove = cos($angle)*($dist+$arrowlength-3);
+	$ymove = sin($angle)*($dist+$arrowlength-3);
+	$point[3]{x} = $xmove;
+	$point[3]{'y'} = $ymove;
+
+	$dist = 4;
+	$xmove = $xmove + cos($angle)*$dist;
+	$ymove = $ymove + sin($angle)*$dist;
+
+	$angle = $angle + PI/2;
+        $dist = $arrowwidth/2;
+        $xmove = $xmove + cos($angle)*$dist;
+        $ymove = $ymove + sin($angle)*$dist;
+
+        $point[1]{x} = $xmove;
+        $point[1]{'y'} = $ymove;
+        $angle = $angle + PI;
+        $dist = $arrowwidth;
+        $xmove = $xmove + cos($angle)*$dist;
+        $ymove = $ymove + sin($angle)*$dist;
+
+        $point[2]{x} = $xmove;
+        $point[2]{'y'} = $ymove;
+        for my $num (0 .. 3)
+        {
+          $point[$num]{'y'} = - $point[$num]{'y'} if $ydist < 0;
+        }
+        $im->line($destx+$point[0]{x},$desty+$point[0]{'y'},$destx+$point[1]{x},$desty+$point[1]{'y'},$darkgrey);
+        $im->line($destx+$point[1]{x},$desty+$point[1]{'y'},$destx+$point[2]{x},$desty+$point[2]{'y'},$darkgrey);
+        $im->line($destx+$point[2]{x},$desty+$point[2]{'y'},$destx+$point[0]{x},$desty+$point[0]{'y'},$darkgrey);
+
+	$x = int(($point[0]{x} + $point[1]{x} + $point[2]{x}) / 3.1);
+	$y = int(($point[0]{'y'} + $point[1]{'y'}  + $point[2]{'y'}) / 3.1);
+    }
+#    $im->setPixel($destx + $x, $desty + $y, $red);
+    $im->fillToBorder($destx + $x, $desty + $y, $darkgrey, $darkgrey);
+    return;
 }
 
 # from perlfunc(1)
