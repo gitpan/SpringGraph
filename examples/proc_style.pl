@@ -14,8 +14,8 @@ my %node = (
 	    brussels => { label => 'Brussels'},
 	   );
 my %link = (
-	    london => { paris => 2 }, # arrow
-	    paris => { brussels => 1 }, # no arror
+	    london => { paris => {dir=>1} }, # arrow
+	    paris => { brussels => {style=>'dashed'} }, # no arror
 	   );
 my $scale = 1;
 

@@ -62,7 +62,7 @@ use GD;
 
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(&calculate_graph &draw_graph);
-our $VERSION = 0.04;
+our $VERSION = 0.041;
 
 use constant PI => 3.141592653589793238462643383279502884197169399375105;
 
