@@ -1,0 +1,6 @@
+Revision history for Perl extension SpringGraph.
+
+0.01  Sun Jun 27 23:08:52 2004
+	- original version; created by h2xs 1.23 with options
+		-X SpringGraph
+
