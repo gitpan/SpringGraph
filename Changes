@@ -18,3 +18,8 @@ Revision history for Perl extension SpringGraph.
 
 0.041 Thu Jul 15 16:30:31 2004
       - fixed bug in examples script 
+
+0.05 Fru Jul 16 17:45:30 2004
+     - added new way of drawing lines from records
+     - fixed a small bug in tree plotting
+     - commented out debug warnings

@@ -62,7 +62,7 @@ use GD;
 
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(&calculate_graph &draw_graph);
-our $VERSION = 0.041;
+our $VERSION = 0.05;
 
 use constant PI => 3.141592653589793238462643383279502884197169399375105;
 
@@ -130,7 +130,7 @@ sub calculate_graph {
 #		warn "--- source : $source / dest : $dest \n";
 		my $wantdist = $dist;
 		if ($dist <= 65) {
-		    $wantdist = $push/0.8;
+		    $wantdist = $push * 2;
 #		    print "pushing apart $source and $dest - current dist : $dist, want dist $wantdist\n";
 		} else {
 		    if ($link{$source}{$dest} || $link{$dest}{$source}) {
@@ -221,8 +221,12 @@ sub add_node {
 	$self->{nodes}{$name} = { %attributes };
     }
     $self->{nodes}{$name}{label} ||= $name;
+    $self->{nodes}{$name}{type} ||= 'plain';
     $self->{nodes}{$name}{name} = $name;
     $self->{nodes}{$name}{weight} ||= 1;
+
+    ($self->{nodes}{$name}{height},$self->{nodes}{$name}{width}) = get_node_size($self->{nodes}{$name}{type},$self->{nodes}{$name}{label});
+
     return;
 }
 
@@ -366,17 +370,63 @@ sub draw {
 		$im->setStyle( getLineStyle($link{$source}{$dest}{style},$colour) );
 		$colour = gdStyled;
 	    }
+
 	    if (defined $node{$dest}{boundary}) {
 		$destx = ( $node{$source}{x} < $node{$dest}{x} )
 		    ? $node{$dest}{boundary}[0] : $node{$dest}{boundary}[2] ;
 		$desty = ( $node{$source}{'y'} < $node{$dest}{'y'} )
 		    ? $node{$dest}{boundary}[1] : $node{$dest}{boundary}[3] ;
-		$im->line($sourcex, $sourcey, $destx, $desty, $colour);
 	    } else {
 		$desty = $node{$dest}{'y'};
-		$im->line($sourcex,$sourcey, $destx, $desty, $colour);
+
+	    }
+
+	    # position start of line if source is record node
+	    if ($node{$source}{width} and $node{$source}{shape} eq 'record') {
+#		warn "source node $source is a record and has a width of $node{$source}{width}\n";
+		my ($width,$height) = ($node{$source}{width},$node{$source}{height});
+#		warn "got width ($width) and height ($height) for source\n";
+		if ($node{$source}{x} - ($height/2) < 0) {
+		    $node{$source}{x} = 5 + $height/2;
+		}
+#		warn "source node has x of $node{$source}{x} and y of $node{$source}{'y'}\n";
+		my $ydiff = ( $desty - $node{$source}{'y'} ) ? $node{$source}{'y'} - $desty: $desty - $node{$source}{'y'};
+		my $xdiff = ( $destx < $node{$source}{x} ) ?  $node{$source}{x} - $destx : $destx - $node{$source}{x};
+#		warn "xdiff : $xdiff, ydiff : $ydiff\n";
+		my $tan_theta = ($desty - $node{$source}{'y'}) / ( $destx - $node{$source}{x} );
+#		warn "got tan of angle : $tan_theta : which is ($desty - $node{$source}{y}) / ( $destx - $node{$source}{x} ) \n";
+
+
+		my $xx = ( $node{$source}{x} > $destx) ? ( 0 - ($width / 2)) : ( 0 + ($width / 2));
+		my $yy = ( $node{$source}{'y'} > $desty) ? ( 0 - ($height / 2)) : ( 0 + ($height / 2));
+
+#		warn "xx : $xx, yy : $yy\n";
+
+		my $exitx = $yy / $tan_theta ;
+
+#		warn "got exitx : $exitx\n";
+		if (($xx > 0 and $exitx > $xx) or (($xx < 0) and $exitx < $xx) ) {
+		    $tan_theta = ($destx - $node{$source}{x}) / ( $desty - $node{$source}{'y'} );
+		    my $exity = $xx / $tan_theta;
+#		    warn "got exity : $exity\n";
+		    $sourcex = $node{$source}{x} + $xx;
+		    if ($xx > 0) { $sourcex+=2; } else { $sourcex-=2; }
+		    $sourcey = int($node{$source}{'y'} + $exity);
+		} else {
+		    $sourcex = int($node{$source}{x} + $exitx);
+		    $sourcey = $node{$source}{'y'} + $yy;
+		    if ($yy > 0) { $sourcey+=2; } else { $sourcey-=2; }
+		}
+#		warn "sourcex : $sourcex / sourcey : $sourcey\n";
+
+	    }
+	    # draw line
+	    $im->line($sourcex,$sourcey, $destx, $desty, $colour);
+	    unless (defined $node{$dest}{boundary}) { # cheat and redraw plain node over line
 		addPlainNode($im,$node{$dest}{x},$node{$dest}{'y'},$node{$dest}{'label'});
 	    }
+
+	    # add arrowhead
 	    if ($link{$source}{$dest}{dir}) {
 		addArrowHead ($im,$sourcex,$destx,$sourcey,$desty,$node{$dest}{shape},$node{$dest}{'label'});
 	    }
@@ -441,7 +491,7 @@ sub addRecordNode {
     $width += $margin * 2;
 
     my $topx = $x - ($width / 2);
-    my $topy = $y - ($height / 3);
+    my $topy = $y - ($height / 2);
     $topy = 5 if ($topy <= 0);
     $topx = 5 if ($topx <= 0);
 
@@ -685,7 +735,7 @@ sub _position_nodes_in_tree {
     my @row_widths = ();
 
     foreach my $nodename (keys %node) {
-	warn "handling node : $nodename\n";
+#	warn "handling node : $nodename\n";
 	$node{$nodename}{label} ||= $nodename;
 	# count methods and attributes to give height
 	my @record_lines = split(/\s*([\n\|])\s*/,$node{$nodename}{label});
@@ -738,7 +788,7 @@ sub _position_nodes_in_tree {
 #	warn ".. node : $node\n";
 	my $depth = 0;
 	foreach my $parent (@{$node{$node}{parents}}) {
-	    warn "parent : $parent\n";
+#	    warn "parent : $parent\n";
 	    my $newdepth = get_depth($parent,$node,\%node);
 	    $depth = $newdepth if ($depth < $newdepth);
 	}
@@ -808,18 +858,17 @@ sub _position_nodes_in_tree {
 	my $pos = $increment;
 #	warn "widest_row : $widest_row // pos : $pos // incremenet : $increment\n";
 #	warn "total height : $self->{_dia_total_height}\n";
-	my $y = 10 + rand(15) + ( ( $self->{_dia_total_height} / 2) - 5 );
+	my $y = 40 + ( ( $self->{_dia_total_height} / 2) - 5 );
 
 	foreach my $node ( @thisrow ) {
 	    next if ($self->{_dia_done}{$node});
 #	    warn "handling node ($node) in row $row_count \n";
 #	    warn "( $self->{_dia_row_widths}[$row_count] * $self->{_dia_widest_row} / 2) + ($pos * $self->{_dia_row_widths}[$row_count])\n";
-	    my $x = rand(150) - ( $self->{_dia_row_widths}[$row_count] * $self->{_dia_widest_row} / 2)
-		+ ($pos * $self->{_dia_row_widths}[$row_count]);
+	    my $x = ($self->{_dia_row_widths}[$row_count] * $self->{_dia_widest_row} / 2) + ($pos * $self->{_dia_row_widths}[$row_count]);
 	    $node{$node}{x} = $x;
 	    $node{$node}{'y'} = $y;
 #	    warn Dumper(nodex=>$node{$node}{x},nodey=>$node{$node}{'y'});
-	    if (scalar @{$node{$node}{children}} && scalar @{$rows[$row_count + 1]})  {
+	    if (ref $rows[$row_count + 1] && scalar @{$node{$node}{children}} && scalar @{$rows[$row_count + 1]})  {
 		my @sorted_children = sort {
 		    $node{$b}{weight} <=> $node{$a}{weight}
 		} @{$node{$node}{children}};
@@ -889,9 +938,9 @@ sub plot_branch {
     my $offset = rand(40);
     my $h = 0;
     while ( $h < $depth ) {
-	warn "row $h height : $self->{_dia_row_heights}[$h]\n";
+#	warn "row $h height : $self->{_dia_row_heights}[$h]\n";
 	$offset += ($self->{_dia_row_heights}[$h++] || 40 ) + 10;
-	warn "offset now $offset\n";
+#	warn "offset now $offset\n";
     }
 
     #  warn Dumper(node=>$node);
@@ -901,7 +950,7 @@ sub plot_branch {
 	    $self->{_dia_done}{$node}++;
 	    my $sum = 0;
 	    foreach my $parent (@$parents) {
-		warn "[ plot branch ] parent : $parent \n";
+#		warn "[ plot branch ] parent : $parent \n";
 		return 0 unless (exists $self->{_dia_nodes}{$parent}{pos});
 		$sum += $self->{_dia_nodes}{$parent}{pos};
 	    }
@@ -924,9 +973,9 @@ sub plot_branch {
 		$pos = $newpos;
 	    }
 	}
-	my $y = 15 + rand(15) + ( ( $self->{_dia_total_height} / 2) - 4 ) + $offset;
+	my $y = 40 + ( ( $self->{_dia_total_height} / 2) - 4 ) + $offset;
 #	print "y : $y\n";
-	my $x = 0 - ( $self->{_dia_row_widths}[$depth] * $self->{_dia_widest_row} / 2)
+	my $x = ( $self->{_dia_row_widths}[$depth] * $self->{_dia_widest_row} / 2)
 	    + ($pos * $self->{_dia_row_widths}[$depth]);
 	#    my $x = 0 - ( $self->{_dia_widest_row} / 2) + ($pos * $self->{_dia_row_widths}[$depth]);
 	$node->{x} = int($x);
